@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Decode — Gen Z Translator</title>
+<style>
+  body{margin:0;font-family:system-ui,sans-serif;background:#f4f6fb;color:#222}
+  .wrap{max-width:720px;margin:0 auto;padding:20px}
+  h1{color:#4f46e5;margin-bottom:4px}
+  small{color:#666}
+  textarea{width:100%;min-height:90px;padding:12px;border-radius:12px;border:1px solid #ccd;font-size:1em;box-sizing:border-box}
+  button{background:#4f46e5;color:#fff;border:none;padding:12px 20px;border-radius:12px;font-size:1em;cursor:pointer;margin-top:8px}
+  .card{background:#fff;border-radius:14px;padding:14px;margin-top:12px;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+  .term{font-weight:700;color:#4f46e5}
+  .tag{display:inline-block;font-size:.75em;padding:2px 8px;border-radius:999px;background:#eef;margin-left:6px}
+  .warn{background:#fee;color:#b00}
+  .reply{background:#f0fdf4;border-left:4px solid #16a34a}
+  .alert{background:#fff1f2;border-left:4px solid #dc2626}
+  .chips span{display:inline-block;background:#e5e7ff;border-radius:999px;padding:4px 10px;margin:3px;cursor:pointer;font-size:.9em}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Decode</h1>
+  <small>Understand Gen Z slang & abbreviations — for educators and youth leaders</small>
+  <div class="card">
+    <textarea id="input" placeholder="Paste a message or ask: what does rizz mean?"></textarea>
+    <button onclick="translateText()">Translate</button>
+    <p><small>Try:</small></p>
+    <div class="chips">
+      <span onclick="fill(this)">ngl that assignment was mid, no cap 💀</span>
+      <span onclick="fill(this)">what does rizz mean?</span>
+      <span onclick="fill(this)">I'm cooked for this exam fr</span>
+      <span onclick="fill(this)">kms this homework</span>
+    </div>
+  </div>
+  <div id="out"></div>
+  <p><small id="count"></small></p>
+</div>
+
+<script>
+// term | meaning | tone | example | flag
+const RAW = `
+ngl|Not gonna lie — being honest|casual|ngl I liked the field trip|
+no cap|No lie / I'm serious|sincere|that test was hard no cap|
+cap|A lie or exaggeration|playful|that's cap|
+fr|For real — agreement or emphasis|sincere|fr that was unfair|
+frfr|For real for real — strong emphasis|sincere|I'm tired frfr|
+bet|Okay / sounds good / deal|agreeable|Meet at 3? Bet|
+mid|Mediocre or average|critical|the movie was mid|
+rizz|Charisma, especially flirting skill|playful|he's got rizz|
+rizzler|Someone with a lot of rizz|playful|he's the rizzler of the class|
+slay|Did something impressively well|positive|you slayed that presentation|
+slayed|Did something impressively well|positive|you slayed that presentation|
+ate|Did exceptionally well|positive|she ate that solo|
+ate and left no crumbs|Did something perfectly|positive|that speech ate and left no crumbs|
+bussin|Really good, usually food|positive|this pizza is bussin|
+sus|Suspicious or shady|wary|that's kinda sus|
+iykyk|If you know, you know — inside reference|exclusive|that lunch line iykyk|
+delulu|Delusional, usually joking|playful|I'm delulu about my grade|
+cooked|In serious trouble / doomed|dramatic|I'm cooked for this exam|
+lowkey|Somewhat / secretly|casual|lowkey nervous|
+highkey|Very / openly|casual|highkey excited|
+ick|Sudden turn-off or disgust|critical|he gave me the ick|
+skibidi|Nonsense word from a viral video; can mean cool or bad depending on context|playful|that's so skibidi|
+sigma|A lone-wolf confident person; often ironic|playful|he's such a sigma|
+ohio|Weird or cursed (from a meme)|playful|that's so ohio|
+brainrot|Low-quality internet content, or the effect of too much of it|self-aware|I have brainrot from TikTok|
+aura|Someone's vibe or coolness, jokingly measured in points|playful|he lost aura points|
+aura points|Imaginary score for coolness|playful|minus 100 aura points|
+mewing|Jaw exercise trend; also a gesture meaning 'can't talk'|playful|he's mewing in class|
+looksmaxxing|Trying to improve appearance; can tie to unhealthy body image|check-in|he's into looksmaxxing|yes
+gyat|Exclamation about someone's body (sexualized)|inappropriate|gyat|yes
+fanum tax|Taking a bite of a friend's food|playful|fanum tax on your fries|
+goated|The greatest; very good|positive|that teacher is goated|
+goat|Greatest of all time|positive|she's the goat|
+ratio|Reply got more likes than the original; you lost the argument|critical|ratio + L|
+based|Confidently yourself regardless of opinion; approval|positive|that take is based|
+cringe|Embarrassing or awkward|critical|that was cringe|
+simp|Someone doing too much for a crush|teasing|stop simping|
+simping|Doing too much for a crush|teasing|stop simping|
+touch grass|Go outside / get off the internet|teasing|bro needs to touch grass|
+main character|Acting like the center of attention|playful|she's in her main character era|
+era|A phase of life or mood|casual|I'm in my study era|
+vibe check|Assessing someone's mood or energy|casual|failed the vibe check|
+vibes|General mood or atmosphere|casual|good vibes only|
+it's giving|It resembles / has the energy of|playful|it's giving Monday|
+understood the assignment|Did exactly what was needed|positive|she understood the assignment|
+periodt|End of discussion; emphasis|emphatic|I'm right periodt|
+say less|I understand / no need to explain|agreeable|Pizza later? Say less|
+sheesh|Impressed exclamation|positive|sheesh that shot|
+yeet|Throw forcefully; exclamation of excitement|playful|yeet the ball|
+glow up|Noticeable improvement in looks or life|positive|he had a glow up over summer|
+drip|Stylish outfit|positive|nice drip|
+fit check|Showing off an outfit|casual|fit check before school|
+flex|Show off|playful|weird flex but ok|
+salty|Bitter or upset|critical|why so salty|
+shook|Shocked|dramatic|I'm shook|
+i'm dead|Laughing extremely hard (not literal)|laughing|I'm dead 💀|
+💀|Laughing hard — 'I'm dead'|laughing|💀💀|
+😭|Laughing or overwhelmed (not literal crying)|laughing|that's hilarious 😭|
+🧢|Cap — a lie|playful|🧢|
+🙏|Please / thank you / 'I'm begging'|casual|extend the deadline 🙏|
+tea|Gossip|playful|spill the tea|
+spill the tea|Share the gossip|playful|spill the tea about the party|
+shade|Subtle insult|critical|throwing shade|
+receipts|Proof, usually screenshots|serious|I have receipts|
+ghosted|Suddenly cut off all communication|hurt|he ghosted me|
+left on read|Message seen but not answered|hurt|she left me on read|
+situationship|Undefined romantic relationship|casual|they're in a situationship|
+talking stage|Early pre-dating phase|casual|we're in the talking stage|
+bestie|Best friend; also used playfully for strangers|friendly|bestie what are you doing|
+bruh|Disbelief or disappointment|casual|bruh|
+bro|Friend; used for anyone regardless of gender|casual|bro that's wild|
+chat|Addressing an imaginary audience (from livestreams)|playful|chat is this real|
+npc|Someone acting mindlessly or like a background character|teasing|he's such an NPC|
+let him cook|Let him continue, he's doing well|positive|let him cook|
+sending me|Making me laugh hard|laughing|this is sending me|
+rent free|Can't stop thinking about something|playful|that song lives rent free in my head|
+pick me|Someone seeking approval by putting down peers|critical|she's such a pick me|
+stan|Devoted fan; to strongly support|positive|I stan that teacher|
+ship|Want two people to be a couple|playful|I ship them|
+hits different|Feels uniquely good or impactful|positive|music at night hits different|
+big mood|Very relatable feeling|casual|big mood|
+mood|Relatable feeling|casual|mood|
+big yikes|Very embarrassing or bad|critical|big yikes|
+sksksk|Laughter or excitement (dated)|playful|sksksk|
+boujee|Fancy or high-class|playful|that café is boujee|
+cheugy|Out of style or trying too hard (dated)|teasing|skinny jeans are cheugy|
+idk|I don't know|casual|idk maybe|
+idc|I don't care|casual|idc honestly|
+tbh|To be honest|casual|tbh it was fine|
+imo|In my opinion|casual|imo it's fair|
+smh|Shaking my head — disappointment|critical|smh|
+wyd|What are you doing|casual|wyd after school|
+hbu|How about you|casual|I'm good hbu|
+istg|I swear to god — frustration or emphasis|emphatic|istg this wifi|
+ong|On god — I swear / truly|sincere|ong I studied|
+pmo|Puts me off / pisses me off|critical|that pmo|
+kms|'Kill myself' — usually hyperbole, but can signal real distress|check-in|kms this homework|yes
+kys|'Kill yourself' — abusive; take seriously as bullying|alert|(directed at others)|yes
+unalive|Euphemism for kill/die used to dodge filters; context matters|check-in|he unalived in the show|yes
+unalived|Euphemism for killed/died|check-in|he unalived in the show|yes
+zaza|Marijuana|alert|got that zaza|yes
+cart|Vape cartridge, often THC|alert|he has a cart|yes
+`;
+
+const DICT = RAW.trim().split("\n").map(l => {
+  const [term, m, tone, ex, flag] = l.split("|");
+  return { term: term.trim(), m, tone, ex, flag: flag === "yes" };
+}).sort((a, b) => b.term.length - a.term.length);
+
+const REPLIES = {
+  casual:"Keep it light and match their energy — no need to use the slang back.",
+  sincere:"Acknowledge it directly; they're being genuine.",
+  positive:"Celebrate with them — a simple 'That's awesome' lands fine.",
+  critical:"Ask a follow-up: 'What would have made it better?'",
+  playful:"Smile and ask a curious question — don't over-analyze the joke.",
+  "check-in":"Don't dismiss it. Privately ask how they're really doing, and follow your organization's safety protocol if concerned.",
+  alert:"Treat this seriously. Document it and follow your safeguarding / anti-bullying procedure.",
+  inappropriate:"Calmly set the boundary: 'That language isn't okay here.' No lecture needed.",
+  default:"Ask a curious question rather than correcting the slang."
+};
+
+function fill(el){ document.getElementById("input").value = el.textContent; translateText(); }
+
+function esc(s){ return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }
+
+function translateText(){
+  const raw = document.getElementById("input").value;
+  const out = document.getElementById("out"); out.innerHTML = "";
+  if(!raw.trim()) return;
+
+  let text = raw.toLowerCase().replace(/[’‘]/g,"'").replace(/[.,!?;:"()]/g," ").replace(/\s+/g," ").trim();
+
+  const isQuestion = /\b(what does|what is|what's|whats|meaning of|define|mean)\b/.test(text);
+
+  const found = [];
+  for (const d of DICT) {
+    const isEmoji = !/^[a-z]/.test(d.term);
+    const re = isEmoji ? new RegExp(esc(d.term)) : new RegExp(`(^|[^a-z])${esc(d.term)}([^a-z]|$)`);
+    if (re.test(text)) {
+      found.push(d);
+      text = text.replace(re, (m, a="", b="") => `${a}[${d.m.split(/[—;.]/)[0].trim()}]${b}`);
+    }
+  }
+
+  if(!found.length){
+    out.innerHTML = `<div class="card">No known slang found in that message.<br><small>Tip: type the slang word itself (e.g. "rizz") or a full message. If it's a real term we're missing, note it — the full app lets you submit new terms.</small></div>`;
+    return;
+  }
+
+  let html = isQuestion ? "" : `<div class="card"><b>Plain English:</b><p>${text}</p></div>`;
+  found.forEach(d => {
+    html += `<div class="card"><span class="term">${d.term}</span><span class="tag">${d.tone}</span>
+      ${d.flag ? '<span class="tag warn">⚠ awareness</span>' : ''}
+      <p>${d.m}</p><small>Example: "${d.ex}"</small></div>`;
+  });
+  const flagged = found.find(d => d.flag);
+  const tone = (flagged || found[0]).tone;
+  html += `<div class="card ${flagged ? 'alert' : 'reply'}"><b>How you might respond:</b><p>${REPLIES[tone] || REPLIES.default}</p></div>`;
+  out.innerHTML = html;
+}
+
+document.getElementById("count").textContent = `${DICT.length} terms in dictionary`;
+document.getElementById("input").addEventListener("keydown", e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); translateText(); } });
+</script>
+</body>
+</html>
